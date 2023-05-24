@@ -2,6 +2,7 @@ namespace autometricsai_backend
 {
     public class WeatherForecast
     {
+        public string? Environ { get; set; }
         public DateTime Date { get; set; }
 
         public int TemperatureC { get; set; }
