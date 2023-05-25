@@ -2,13 +2,13 @@ version: 0.2
 phases:
   pre_build:
     commands:
+      - echo replace env variable inside appsettings json
+      - echo $ENVIRONMENT
+      - sed -i 's/ENVIRONMENT_VALUE/$ENVIRONMENT/g' appsettings.json
       - echo Restore started on `date`
       - dotnet restore autometricsai-backend.csproj
   build:
     commands:
-      - echo replace env variable inside appsettings json
-      - echo $ENVIRONMENT
-      - sed -i 's/ENVIRONMENT_VALUE/$ENVIRONMENT/g' appsettings.json
       - echo Build started on `date`
       - dotnet publish -c release -o ./build_output autometricsai-backend.csproj
 artifacts:
