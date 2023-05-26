@@ -4,7 +4,7 @@ phases:
     commands:
       - echo replace env variable inside appsettings json
       - echo $ENVIRONMENT
-      - sed -i 's/ENVIRONMENT_VALUE/$ENVIRONMENT/g' appsettings.json
+      - sed -i "s/ENVIRONMENT_VALUE/$ENVIRONMENT/g" appsettings.json
       - echo Restore started on `date`
       - dotnet restore autometricsai-backend.csproj
   build:
