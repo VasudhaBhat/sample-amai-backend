@@ -34,7 +34,7 @@ Metadata:
       CodeBuildImage:
         default: CodeBuild image version
 Parameters:
-  Environment:
+  EnvValue:
     Description: The environment name of CodePipeline.
     AllowedValues: ["development", "integration", "uat", "production"]
     Type: String
@@ -42,7 +42,7 @@ Parameters:
   GitHubRepositoryName:
     Type: String
     Description: Name of the GitHub repository that hosts the web application.
-    Default: quickstart-dotnetcore-cicd
+    Default:  sample-amai-backend
   GitHubBranchName:
     Type: String
     Description: Name of the GitHub branch that the CI/CD pipeline will pull from.
@@ -62,6 +62,12 @@ Parameters:
     Type: String
     Description: Docker image version to use for CodeBuild. Enter the latest version. To find the latest version, go to https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html.
     Default: 'aws/codebuild/amazonlinux2-x86_64-standard:4.0'
+
+Conditions:
+  IsEnvDevelop: !Equals 
+    - !Ref EnvValue
+    - development
+
 Resources:
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -84,7 +90,7 @@ Resources:
         EnvironmentVariables:
           - Name: ENVIRONMENT
             Type: PLAINTEXT
-            Value: !Ref Environment
+            Value: !Ref EnvValue
       ServiceRole:   !GetAtt 
         - CodeBuildServiceRole
         - Arn
@@ -326,24 +332,40 @@ Resources:
     Properties: 
       Roles: 
         - !Ref EBInstanceProfileRole
+
   ElasticBeanstalkApplication:
     Type: AWS::ElasticBeanstalk::Application
     Properties:
+      ApplicationName: "amai-backend-application-poc"
       Description: AWS Elastic Beanstalk Sample Application
+  
+  EBEnvConfigurationTemplate:
+    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
+    Properties:
+      ApplicationName:
+        Ref: ElasticBeanstalkApplication
+      Description: AWS ElasticBeanstalk Sample Configuration Template
+      OptionSettings:
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: EnvironmentType
+        Value: !If [IsEnvDevelop, SingleInstance, LoadBalanced]
+      - Namespace: 'aws:autoscaling:launchconfiguration'
+        OptionName: IamInstanceProfile
+        Value: !Ref EBInstanceProfile
+      - Namespace: aws:elasticbeanstalk:environment
+        OptionName: LoadBalancerType
+        Value: application
+      SolutionStackName: !Ref SolutionStack
+
   ElasticBeanstalkEnvironment:
     Type: AWS::ElasticBeanstalk::Environment
     DependsOn: ElasticBeanstalkApplication
     Properties: 
       ApplicationName: !Ref ElasticBeanstalkApplication
       Description: "AWS Elastic Beanstalk Environment running .NET Core Application"
-      SolutionStackName: !Ref SolutionStack
-      OptionSettings:
-        - Namespace: 'aws:autoscaling:launchconfiguration'
-          OptionName: IamInstanceProfile
-          Value: !Ref EBInstanceProfile
-        - Namespace: aws:elasticbeanstalk:environment
-          OptionName: LoadBalancerType
-          Value: application
+      TemplateName:
+        Ref: EBEnvConfigurationTemplate
+        
 Outputs:
   CodePipelineName:
     Description: CodePipeline  Name
