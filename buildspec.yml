@@ -12,7 +12,7 @@ phases:
       - echo Build started on `date`
       - dotnet publish -c release -o ./build_output autometricsai-backend.csproj
       - zip autometricsai-backend.zip -r ./build_output
-      - aws s3 cp autometricsai-backend.zip s3://$PACKAGE_BUCKET_NAME
+      - aws s3 cp --sse aws:kms --sse-kms-key-id "arn:aws:kms:us-east-1:444601120704:key/81851a4d-55d5-47be-b009-e49ed2106ded" autometricsai-backend.zip s3://$PACKAGE_BUCKET_NAME
 artifacts:
   files:
     - ./**/*
