@@ -39,6 +39,18 @@ Parameters:
     AllowedValues: ["development", "integration", "uat", "production"]
     Type: String
     Default: 'development'
+  DomainName:
+    Description: Domain name for the website
+    AllowedValues:
+      - testelb.dev.autometricsai.com
+    Type: String
+    Default: testelb.dev.autometricsai.com
+
+  DomainHostedZoneId:
+    Description: Domain hosted zone id from Route53 for doamin 'dev.autometricsai.com'
+    Type: String
+    Default: Z04902863ELJK3VZLXCO1
+
   GitHubRepositoryName:
     Type: String
     Description: Name of the GitHub repository that hosts the web application.
@@ -62,11 +74,6 @@ Parameters:
     Type: String
     Description: Docker image version to use for CodeBuild. Enter the latest version. To find the latest version, go to https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html.
     Default: 'aws/codebuild/amazonlinux2-x86_64-standard:4.0'
-
-Conditions:
-  IsEnvDevelop: !Equals 
-    - !Ref EnvValue
-    - development
 
 Resources:
   CodeBuildProject:
@@ -346,15 +353,21 @@ Resources:
         Ref: ElasticBeanstalkApplication
       Description: AWS ElasticBeanstalk Sample Configuration Template
       OptionSettings:
-      - Namespace: aws:elasticbeanstalk:environment
-        OptionName: EnvironmentType
-        Value: !If [IsEnvDevelop, SingleInstance, LoadBalanced]
       - Namespace: 'aws:autoscaling:launchconfiguration'
         OptionName: IamInstanceProfile
         Value: !Ref EBInstanceProfile
+      - Namespace: aws:autoscaling:launchconfiguration
+        OptionName: EC2KeyName
+        Value: Web-FootAI-Dev-Server
       - Namespace: aws:elasticbeanstalk:environment
         OptionName: LoadBalancerType
         Value: application
+      - Namespace: aws:elbv2:listener:443
+        OptionName: Protocol
+        Value: HTTPS
+      - Namespace: aws:elbv2:listener:443
+        OptionName: SSLCertificateArns
+        Value: arn:aws:acm:ap-southeast-2:444601120704:certificate/0c72d167-a725-4e20-8b56-afc7f0d209fb
       SolutionStackName: !Ref SolutionStack
 
   ElasticBeanstalkEnvironment:
@@ -365,8 +378,15 @@ Resources:
       Description: "AWS Elastic Beanstalk Environment running .NET Core Application"
       TemplateName:
         Ref: EBEnvConfigurationTemplate
+
         
 Outputs:
   CodePipelineName:
     Description: CodePipeline  Name
     Value: !Ref AppPipeline
+  LoadbalancerDNSName:
+    Description: The load balancer DNS Name created by beanstalk environment
+    Value: !GetAtt ElasticBeanstalkEnvironment.EndpointURL
+    Export:
+      Name: LoadBalancerDNSName
+
