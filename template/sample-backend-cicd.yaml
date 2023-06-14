@@ -39,6 +39,21 @@ Parameters:
     AllowedValues: ["development", "integration", "uat", "production"]
     Type: String
     Default: 'development'
+  DomainName:
+    Description: Domain name for the website
+    AllowedValues:
+      - testelb.dev.autometricsai.com
+    Type: String
+    Default: testelb.dev.autometricsai.com
+  DomainHostedZoneId:
+    Description: Domain hosted zone id from Route53 for doamin 'dev.autometricsai.com'
+    Type: String
+    Default: Z04902863ELJK3VZLXCO1
+  PackageBucketName:
+    Description: The bucket name to upload the application package
+    Type: String
+    Default: 'web-application-cicd-packages'
+
   GitHubRepositoryName:
     Type: String
     Description: Name of the GitHub repository that hosts the web application.
@@ -63,11 +78,6 @@ Parameters:
     Description: Docker image version to use for CodeBuild. Enter the latest version. To find the latest version, go to https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html.
     Default: 'aws/codebuild/amazonlinux2-x86_64-standard:4.0'
 
-Conditions:
-  IsEnvDevelop: !Equals 
-    - !Ref EnvValue
-    - development
-
 Resources:
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -91,6 +101,9 @@ Resources:
           - Name: ENVIRONMENT
             Type: PLAINTEXT
             Value: !Ref EnvValue
+          - Name: PACKAGE_BUCKET_NAME
+            Type: PLAINTEXT
+            Value: !Ref PackageBucketName
       ServiceRole:   !GetAtt 
         - CodeBuildServiceRole
         - Arn
@@ -147,20 +160,7 @@ Resources:
                 - Name: BuildArtifact
               InputArtifacts:
                 - Name: SourceArtifact
-        - Name: Deploy
-          Actions:
-            - Name: Deploy
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: ElasticBeanstalk
-                Version: 1
-              RunOrder: 1
-              Configuration:
-                ApplicationName: !Ref ElasticBeanstalkApplication
-                EnvironmentName: !Ref ElasticBeanstalkEnvironment
-              InputArtifacts:
-                - Name: BuildArtifact
+
   CodePipelineServiceRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -309,63 +309,7 @@ Resources:
                       - 's3:GetObject'
                       - 's3:GetObjectVersion'
                       - 's3:GetBucketAcl'
-                      - 's3:GetBucketLocation'
-  EBInstanceProfileRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-      Path: /
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier            
-        - arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker
-        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
-  EBInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties: 
-      Roles: 
-        - !Ref EBInstanceProfileRole
-
-  ElasticBeanstalkApplication:
-    Type: AWS::ElasticBeanstalk::Application
-    Properties:
-      ApplicationName: "amai-backend-application-poc"
-      Description: AWS Elastic Beanstalk Sample Application
-  
-  EBEnvConfigurationTemplate:
-    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
-    Properties:
-      ApplicationName:
-        Ref: ElasticBeanstalkApplication
-      Description: AWS ElasticBeanstalk Sample Configuration Template
-      OptionSettings:
-      - Namespace: aws:elasticbeanstalk:environment
-        OptionName: EnvironmentType
-        Value: !If [IsEnvDevelop, SingleInstance, LoadBalanced]
-      - Namespace: 'aws:autoscaling:launchconfiguration'
-        OptionName: IamInstanceProfile
-        Value: !Ref EBInstanceProfile
-      - Namespace: aws:elasticbeanstalk:environment
-        OptionName: LoadBalancerType
-        Value: application
-      SolutionStackName: !Ref SolutionStack
-
-  ElasticBeanstalkEnvironment:
-    Type: AWS::ElasticBeanstalk::Environment
-    DependsOn: ElasticBeanstalkApplication
-    Properties: 
-      ApplicationName: !Ref ElasticBeanstalkApplication
-      Description: "AWS Elastic Beanstalk Environment running .NET Core Application"
-      TemplateName:
-        Ref: EBEnvConfigurationTemplate
-        
+                      - 's3:GetBucketLocation'  
 Outputs:
   CodePipelineName:
     Description: CodePipeline  Name
